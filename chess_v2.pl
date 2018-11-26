@@ -19,6 +19,10 @@
 % Valid positions
 valid_pos(pos(R, X)) :- X>0, X<10, R>0, R<11.
 
+% dif_pos(A, B) where A =\= B
+dif_pos(pos(R1, _), pos(R2, _)) :- dif(R1, R2).
+dif_pos(pos(_, X1), pos(_, X2)) :- dif(X1, X2).
+
 valid_pos_for(general, pos(R, X)) :- R>0, R<4, X>3, X<7.
 
 valid_pos_for(advisor, pos(1, 4)).
@@ -97,17 +101,29 @@ init_board([
 % inverse the board for black side to take the red stategies.
 inverse_board([], []).
 inverse_board([piece(Class, Color, pos(R, X)) | T], [piece(Class, Color, pos(IR, X))| R]) :-
-    R+IR=:=11,
-    inverse_board(T, R).
+  R+IR=:=11,
+  inverse_board(T, R).
 
-% State - [Turn, Winner, PieceOnChecked]
-init_state([red, none, none]).
+% State - [Turn, Winner]
+% Turn: red, black, none(GameOver)
+% Winner: red, black, none.
+init_state([red, none]).
+
+% ----------------------------------------------------------------
+% Helpers
 
 % Get the chess piece from the board at the specified position.
 get_piece(_, [], none).
 get_piece(Pos, [piece(Class, Color, Pos)|_], piece(Class, Color, Pos)).
 get_piece(Pos, [_|T], Piece) :-
     get_piece(Pos, T, Piece).
+
+% move_piece(Piece, Dst, Board, NBoard, PieceDropped)
+move_piece(piece(Class, Color, _), Dst, [], [piece(Class, Color, Dst)], none).
+move_piece(Piece, Dst, [piece(Class, Color, Dst)|T], R, piece(Class, Color, Dst)) :-
+  move_piece(Piece, Dst, T, R, none).
+move_piece(piece(Class, Color, Src), Dst, [piece(Class, Color, Src)|T], R, Dropped) :-
+  move_piece(piece(Class, Color, Src), Dst, T, R, Dropped).
 
 % Check the result of a specific step.
 check_step(_, Dst, Board, clear) :-
@@ -130,6 +146,18 @@ is_a_non_blocking_step(Piece, Dst, Board) :-
 is_a_non_clear_step(Piece, Dst, Board) :-
     check_step(Piece, Dst, Board, Res),
     dif(Res, clear).
+
+other(red, black).
+other(black, red).
+
+% Transit the game state with considering the pieces droped.
+% transit_state(OldState, PieceDropped, NewState).
+transit_state(_, piece(general, Color, _), [none, other(Color)]).
+transit_state([Turn, none], _, [other(Turn), none]).
+
+
+% ----------------------------------------------------------------
+% Move Checking
 
 % Soldier
 check_move(piece(soldier, pos(R1, X)), pos(R2, X), Board) :-
@@ -202,3 +230,15 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
     get_one_step_towards(Src, Dst, Midway),
     is_a_non_clear_step(piece(cannon, Color, Src), Midway, Board),
     cannon_move_checker(piece(cannon, Color, Midway), Dst, Board, armed).
+
+% ----------------------------------------------------------------
+% Move
+
+% move(Src, Dst, game(Board, State), game(NBoard, NState))
+move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
+  valid_pos(Dst),
+  get_piece(Src, Board, piece(Class, Turn, Src)),
+  check_move(piece(Class, Turn, Src), Dst, Board),
+  move_piece(piece(Class, Turn, Src), Dst, Board, RawNBoard, PieceDropped),
+  transit_state([Turn, Win], PieceDropped, NState),
+  inverse_board(RawNBoard, NBoard).
