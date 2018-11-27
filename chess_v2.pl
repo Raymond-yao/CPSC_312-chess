@@ -42,25 +42,25 @@ is_one_non_diagonal_step(pos(R1, X1), pos(R2, X2)) :-
     DX is abs(X1-X2),
     DR+DX=:=1.
 
-is_n_diagonal_step(pos(R1, X1), pos(R2, X2), N) :-
-    abs(R1-R2)=:=N,
-    abs(X1-X2)=:=N.
+is_n_diagonal_step(pos(R1, X1), pos(R2, X2), abs(R1-R2)) :-
+    abs(R1-R2)=:=abs(X1-X2).
 
-get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X1>X2,X1-1=:=X3.
-get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X2>X1,X1+1=:=X3.
-get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R1>R2,R1-1=:=R3.
-get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R2>R1,R1+1=:=R3.
+get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X1>X2,X3 is X1-1.
+get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X2>X1,X3 is X1+1.
+get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R1>R2,R3 is R1-1.
+get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R2>R1,R3 is R1+1.
 
 get_one_diagonal_step_towards(pos(R1,X1), pos(R2, X2), pos(R3, X3)) :-
-    R1 + (R2-R1)/abs(R2-R1) =:= R3,
-    X1 + (X2-X1)/abs(X2-X1) =:= X3.
+    is_n_diagonal_step(pos(R1,X1), pos(R2,X2), N),
+    R3 is R1 + (R2-R1)/N,
+    X3 is X1 + (X2-X1)/N.
 
-get_horse_midway_pos(pos(R1,X1), pos(R2,X2), pos(R1,(X1+X2)/2)) :-
-    abs(R2-R1)=:=1,
-    abs(X2-X1)=:=2.
-get_horse_midway_pos(pos(R1,X1), pos(R2,X2), pos((R1+R2)/2,X1)) :-
-    abs(R2-R1)=:=2,
-    abs(X2-X1)=:=1.
+get_horse_midway_pos(pos(R1,X1), pos(R2,X2), pos(R1,X3)) :-
+    abs(R2-R1) =:= abs(X2-X1) - 1,
+    X3 is (X1+X2)/2.
+get_horse_midway_pos(pos(R1,X1), pos(R2,X2), pos(R3,X1)) :-
+    abs(R2-R1) =:= abs(X2-X1) + 1,
+    R3 is (R1+R2)/2.
 
 % ----------------------------------------------------------------
 % Initialization
@@ -101,8 +101,8 @@ init_board([
 % inverse the board for black side to take the red stategies.
 inverse_board([], []).
 inverse_board([piece(Class, Color, pos(R, X)) | T], [piece(Class, Color, pos(IR, X))| R]) :-
-  R+IR=:=11,
-  inverse_board(T, R).
+    R+IR=:=11,
+    inverse_board(T, R).
 
 % State - [Turn, Winner]
 % Turn: red, black, none(GameOver)
@@ -121,9 +121,9 @@ get_piece(Pos, [_|T], Piece) :-
 % move_piece(Piece, Dst, Board, NBoard, PieceDropped)
 move_piece(piece(Class, Color, _), Dst, [], [piece(Class, Color, Dst)], none).
 move_piece(Piece, Dst, [piece(Class, Color, Dst)|T], R, piece(Class, Color, Dst)) :-
-  move_piece(Piece, Dst, T, R, none).
+    move_piece(Piece, Dst, T, R, none).
 move_piece(piece(Class, Color, Src), Dst, [piece(Class, Color, Src)|T], R, Dropped) :-
-  move_piece(piece(Class, Color, Src), Dst, T, R, Dropped).
+    move_piece(piece(Class, Color, Src), Dst, T, R, Dropped).
 
 % Check the result of a specific step.
 check_step(_, Dst, Board, clear) :-
@@ -236,9 +236,9 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
 
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
-  valid_pos(Dst),
-  get_piece(Src, Board, piece(Class, Turn, Src)),
-  check_move(piece(Class, Turn, Src), Dst, Board),
-  move_piece(piece(Class, Turn, Src), Dst, Board, RawNBoard, PieceDropped),
-  transit_state([Turn, Win], PieceDropped, NState),
-  inverse_board(RawNBoard, NBoard).
+    valid_pos(Dst),
+    get_piece(Src, Board, piece(Class, Turn, Src)),
+    check_move(piece(Class, Turn, Src), Dst, Board),
+    move_piece(piece(Class, Turn, Src), Dst, Board, RawNBoard, PieceDropped),
+    transit_state([Turn, Win], PieceDropped, NState),
+    inverse_board(RawNBoard, NBoard).
