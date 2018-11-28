@@ -113,7 +113,6 @@ init_state([red, none]).
 % Helpers
 
 % Get the chess piece from the board at the specified position.
-get_piece(_, [], none).
 get_piece(Pos, [piece(Class, Color, Pos)|_], piece(Class, Color, Pos)).
 get_piece(Pos, [_|T], Piece) :-
     get_piece(Pos, T, Piece).
@@ -126,25 +125,24 @@ move_piece(piece(Class, Color, Src), Dst, [piece(Class, Color, Src)|T], R, Dropp
     move_piece(piece(Class, Color, Src), Dst, T, R, Dropped).
 
 % Check the result of a specific step.
-check_step(_, Dst, Board, clear) :-
-    valid_pos(Dst),
-    get_piece(Dst, Board, none).
+check_step(piece(_,_,Src), Dst, Board, clear) :-
+    dif_pos(Src, Dst),
+    \+ get_piece(Dst, Board, _).
+check_step(piece(_,_,Src), Src, _, block).
 check_step(piece(_, Color, _), Dst, Board, block) :-
-    valid_pos(Dst),
-    get_piece(Dst, Board, piece(_, Color, _)).
+    once(get_piece(Dst, Board, piece(_, Color, _))).
 check_step(piece(_, Color1, _), Dst, Board, attack) :-
-    valid_pos(Dst),
-    get_piece(Dst, Board, piece(_, Color2, _)),
+    once(get_piece(Dst, Board, piece(_, Color2, _))),
     dif(Color1, Color2).
 
 % If the Dst is either a clear step or an attack step.
 is_a_non_blocking_step(Piece, Dst, Board) :-
-    check_step(Piece, Dst, Board, Res),
+    once(check_step(Piece, Dst, Board, Res)),
     dif(Res, block).
 
 % If the Dst is either a block step or an attack step.
 is_a_non_clear_step(Piece, Dst, Board) :-
-    check_step(Piece, Dst, Board, Res),
+    once(check_step(Piece, Dst, Board, Res)),
     dif(Res, clear).
 
 other(red, black).
@@ -152,9 +150,13 @@ other(black, red).
 
 % Transit the game state with considering the pieces droped.
 % transit_state(OldState, PieceDropped, NewState).
-transit_state(_, piece(general, Color, _), [none, other(Color)]).
-transit_state([Turn, none], _, [other(Turn), none]).
-
+transit_state(_, piece(general, Color, _), [none, Winner]) :-
+    other(Color, Winner).
+transit_state([Turn, _], none, [NextTurn, none]) :-
+    other(Turn, NextTurn).
+transit_state([Turn, _], piece(Class, _,_), [NextTurn, none]) :-
+    dif(Class, general),
+    other(Turn, NextTurn).
 
 % ----------------------------------------------------------------
 % Move Checking
@@ -185,14 +187,14 @@ check_move(piece(elephant, Color, Src), Dst, Board) :-
     valid_pos_for(elephant, Dst),
     is_n_diagonal_step(Src, Dst, 2),
     get_one_diagonal_step_towards(Src, Dst, Midway),
-    check_step(piece(elephant, Color, Src), Midway, Board, clear),
+    once(check_step(piece(elephant, Color, Src), Midway, Board, clear)),
     is_a_non_blocking_step(piece(elephant, Color, Midway), Dst, Board).
 
 % Horse
 check_move(piece(horse, Color, Src), Dst, Board) :-
     valid_pos(Dst),
     get_horse_midway_pos(Src, Dst, Midway),
-    check_step(piece(horse, Color, Src), Midway, Board, clear),
+    once(check_step(piece(horse, Color, Src), Midway, Board, clear)),
     is_a_non_blocking_step(piece(horse, Color, Midway), Dst, Board).
 
 % Chariot
@@ -204,7 +206,7 @@ check_move(piece(chariot, Color, Src), Dst, Board) :-
     \+ is_one_non_diagonal_step(Src, Dst),
     get_one_step_towards(Src, Dst, Midway),
     valid_pos(Midway),
-    check_step(piece(chariot, Color, Src), Midway, Board, clear),
+    once(check_step(piece(chariot, Color, Src), Midway, Board, clear)),
     check_move(piece(chariot, Color, Midway), Dst, Board).
 
 % Cannon
@@ -215,15 +217,15 @@ check_move(Piece, Dst, Board) :-
 cannon_move_checker(piece(cannon, Color, Src), Dst, Board, _) :-
     valid_pos(Dst),
     is_one_non_diagonal_step(Src, Dst),
-    check_step(piece(cannon, Color, Src), Dst, Board, clear).
+    once(check_step(piece(cannon, Color, Src), Dst, Board, clear)).
 cannon_move_checker(piece(cannon, Color, Src), Dst, Board, armed) :-
     is_one_non_diagonal_step(Src, Dst),
-    check_step(piece(cannon, Color, Src), Dst, Board, attack).
+    once(check_step(piece(cannon, Color, Src), Dst, Board, attack)).
 cannon_move_checker(piece(cannon, Color, Src), Dst, Board, State) :-
     \+ is_one_non_diagonal_step(Src, Dst),
     get_one_step_towards(Src, Dst, Midway),
     valid_pos(Midway),
-    check_step(piece(cannon, Color, Src), Midway, Board, clear),
+    once(check_step(piece(cannon, Color, Src), Midway, Board, clear)),
     cannon_move_checker(piece(cannon, Color, Midway), Dst, Board, State).
 cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
     \+ is_one_non_diagonal_step(Src, Dst),
@@ -237,7 +239,7 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     valid_pos(Dst),
-    get_piece(Src, Board, piece(Class, Turn, Src)),
+    once(get_piece(Src, Board, piece(Class, Turn, Src))),
     check_move(piece(Class, Turn, Src), Dst, Board),
     move_piece(piece(Class, Turn, Src), Dst, Board, RawNBoard, PieceDropped),
     transit_state([Turn, Win], PieceDropped, NState),
