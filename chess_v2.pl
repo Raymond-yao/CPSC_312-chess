@@ -42,8 +42,9 @@ is_one_non_diagonal_step(pos(R1, X1), pos(R2, X2)) :-
     DX is abs(X1-X2),
     DR+DX=:=1.
 
-is_n_diagonal_step(pos(R1, X1), pos(R2, X2), abs(R1-R2)) :-
-    abs(R1-R2)=:=abs(X1-X2).
+is_n_diagonal_step(pos(R1, X1), pos(R2, X2), Rv) :-
+    abs(R1-R2)=:=abs(X1-X2),
+    Rv is abs(R1-R2).
 
 get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X1>X2,X3 is X1-1.
 get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X2>X1,X3 is X1+1.
@@ -101,7 +102,7 @@ init_board([
 % inverse the board for black side to take the red stategies.
 inverse_board([], []).
 inverse_board([piece(Class, Color, pos(R, X)) | T], [piece(Class, Color, pos(IR, X))| R]) :-
-    R+IR=:=11,
+    IR is 11 - R,
     inverse_board(T, R).
 
 % State - [Turn, Winner]
@@ -130,9 +131,9 @@ check_step(piece(_,_,Src), Dst, Board, clear) :-
     \+ get_piece(Dst, Board, _).
 check_step(piece(_,_,Src), Src, _, block).
 check_step(piece(_, Color, _), Dst, Board, block) :-
-    once(get_piece(Dst, Board, piece(_, Color, _))).
+    get_piece(Dst, Board, piece(_, Color, _)).
 check_step(piece(_, Color1, _), Dst, Board, attack) :-
-    once(get_piece(Dst, Board, piece(_, Color2, _))),
+    get_piece(Dst, Board, piece(_, Color2, _)),
     dif(Color1, Color2).
 
 % If the Dst is either a clear step or an attack step.
@@ -162,29 +163,29 @@ transit_state([Turn, _], piece(Class, _,_), [NextTurn, none]) :-
 % Move Checking
 
 % Soldier
-check_move(piece(soldier, pos(R1, X)), pos(R2, X), Board) :-
-    is_a_non_blocking_step(piece(soldier, pos(R1, X)), pos(R2, X), Board),
-    R2-R1=:=1.
-check_move(piece(soldier, pos(R, X1)), pos(R, X2), Board) :-
-    is_a_non_blocking_step(piece(soldier, pos(R, X1)), pos(R, X2), Board),
+check_move(piece(soldier, Color, pos(R1, X)), pos(R2, X), Board) :-
+    is_a_non_blocking_step(piece(soldier, Color, pos(R1, X)), pos(R2, X), Board),
+    R2 is R1+1.
+check_move(piece(soldier, Color, pos(R, X1)), pos(R, X2), Board) :-
+    is_a_non_blocking_step(piece(soldier, Color, pos(R, X1)), pos(R, X2), Board),
     R>5,
     abs(X2-X1)=:=1.
 
 % General
 check_move(piece(general, Color, Src), Dst, Board) :-
-    valid_pos_for(general, Dst),
+    once(valid_pos_for(general, Dst)),
     is_one_non_diagonal_step(Src, Dst),
     is_a_non_blocking_step(piece(general, Color, Src), Dst, Board).
 
 % Advisor
 check_move(piece(advisor, Color, Src), Dst, Board) :-
-    valid_pos_for(advisor, Dst),
+    once(valid_pos_for(advisor, Dst)),
     is_n_diagonal_step(Src, Dst, 1),
     is_a_non_blocking_step(piece(advisor, Color, Src), Dst, Board).
 
 % Elephant
 check_move(piece(elephant, Color, Src), Dst, Board) :-
-    valid_pos_for(elephant, Dst),
+    once(valid_pos_for(elephant, Dst)),
     is_n_diagonal_step(Src, Dst, 2),
     get_one_diagonal_step_towards(Src, Dst, Midway),
     once(check_step(piece(elephant, Color, Src), Midway, Board, clear)),
