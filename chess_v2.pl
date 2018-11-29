@@ -266,3 +266,49 @@ move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     move_piece(Src, Dst, Board, RawNBoard, PieceDropped),
     transit_state([Turn, Win], PieceDropped, NState),
     inverse_board(RawNBoard, NBoard), !.
+
+% ----------------------------------------------------------------
+% Prints
+draw_piece(piece(chariot, red, _)) :- put_char('Ⓒ'), !.
+draw_piece(piece(horse, red, _)) :- put_char('Ⓗ'), !.
+draw_piece(piece(elephant, red, _)) :- put_char('Ⓔ'), !.
+draw_piece(piece(advisor, red, _)) :- put_char('Ⓐ'), !.
+draw_piece(piece(general, red, _)) :- put_char('Ⓖ'), !.
+draw_piece(piece(cannon, red, _)) :- put_char('Ⓟ'), !.
+draw_piece(piece(soldier, red, _)) :- put_char('Ⓢ'), !.
+
+draw_piece(piece(chariot, black, _)) :- put_char('🅒'), !.
+draw_piece(piece(horse, black, _)) :- put_char('🅗'), !.
+draw_piece(piece(elephant, black, _)) :- put_char('🅔'), !.
+draw_piece(piece(advisor, black, _)) :- put_char('🅐'), !.
+draw_piece(piece(general, black, _)) :- put_char('🅖'), !.
+draw_piece(piece(cannon, black, _)) :- put_char('🅟'), !.
+draw_piece(piece(soldier, black, _)) :- put_char('🅢'), !.
+
+
+draw_pos(R, 11, _) :-
+    format('| ~d\n', R), !.
+draw_pos(R, 0, Board) :-
+    format('~|~` t~d~2| |', R),
+    draw_pos(R, 1, Board), !.
+draw_pos(R, X, Board) :-
+    put_char(' '),
+    (get_piece(pos(R,X), Board, P) ->
+    draw_piece(P);
+    put_char(' ')),
+    NX is X + 1,
+    draw_pos(R, NX, Board), !.
+
+draw_rank(0, _) :-
+    format('    -------------------\n'),
+    format('     1 2 3 4 5 6 7 8 9\n'), !.
+draw_rank(11, Board) :-
+    format('     1 2 3 4 5 6 7 8 9\n'),
+    format('    -------------------\n'),
+    draw_rank(10, Board), !.
+draw_rank(R, Board) :-
+    draw_pos(R, 0, Board),
+    NR is R - 1,
+    draw_rank(NR, Board).
+
+draw_board(Board) :- draw_rank(11,Board).
