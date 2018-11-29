@@ -284,7 +284,7 @@ cannon_attack_checker(piece(cannon, Color, Src), Dst, Board, Form):-
 % Main
 
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
-move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
+move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState), PieceDropped) :-
     valid_pos(Dst),
     get_piece(Src, Board, Piece),
     piece_color(Piece, Turn),
@@ -310,12 +310,15 @@ play(game(Board, [none, Winner]), _, _) :-
 
 
 play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType) :-
-    format('===========================\n'),
-    format('Turn for [ ~q ] to make a move. \n', Turn),
-    format('===========================\n'),
+    format('\n....... Start of ~w turn .......\n', Turn),
+    format('Turn for [ ~w ] to make a move. \n', Turn),
+    format('````````````````````````````````\n'),
     draw_board(Board),
     player(TurnPlayerType, game(Board, [Turn, none]), Src, Dst),
-    move(Src, Dst, game(Board, [Turn, none]), NGame),
+    move(Src, Dst, game(Board, [Turn, none]), NGame, PieceDropped),
+    format('========= Valid move =========\n'),
+    format('Move: ~w -> ~w | Piece dropped: ~w\n', [Src, Dst, PieceDropped]),
+    format('`````` End of ~w turn ```````\n\n', Turn),
     play(NGame, OpponentPlayerType, TurnPlayerType);
     format('\n\n[!!!!!!! INVALID MOVE !!!!!!!]\n Either the input is not of the format pos(R,X), or the move is illigal.\n\n'),
     play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType).
