@@ -46,10 +46,10 @@ is_n_diagonal_step(pos(R1, X1), pos(R2, X2), Rv) :-
     abs(R1-R2)=:=abs(X1-X2),
     Rv is abs(R1-R2).
 
-get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X1>X2,X3 is X1-1, !.
-get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X2>X1,X3 is X1+1, !.
-get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R1>R2,R3 is R1-1, !.
-get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R2>R1,R3 is R1+1, !.
+get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X1>X2+1,X3 is X1-1, !.
+get_one_step_towards(pos(R,X1), pos(R, X2), pos(R, X3)) :- X2>X1+1,X3 is X1+1, !.
+get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R1>R2+1,R3 is R1-1, !.
+get_one_step_towards(pos(R1,X), pos(R2, X), pos(R3, X)) :- R2>R1+1,R3 is R1+1, !.
 
 get_one_diagonal_step_towards(pos(R1,X1), pos(R2, X2), pos(R3, X3)) :-
     is_n_diagonal_step(pos(R1,X1), pos(R2,X2), N),
@@ -100,6 +100,7 @@ init_board([
     piece(soldier, black, pos(7, 9))]).
 
 debug_board([
+    piece(cannon, red, pos(1,9)),
     piece(chariot, red, pos(10, 1)),
     piece(chariot, black, pos(1, 1)),
     piece(general, red, pos(1, 5)),
@@ -193,19 +194,19 @@ check_move(piece(soldier, Color, pos(R, X1)), pos(R, X2), Board) :-
 
 % General
 check_move(piece(general, Color, Src), Dst, Board) :-
-    once(valid_pos_for(general, Dst)),
+    valid_pos_for(general, Dst),
     is_one_non_diagonal_step(Src, Dst),
     is_a_non_blocking_step(piece(general, Color, Src), Dst, Board).
 
 % Advisor
 check_move(piece(advisor, Color, Src), Dst, Board) :-
-    once(valid_pos_for(advisor, Dst)),
+    valid_pos_for(advisor, Dst),
     is_n_diagonal_step(Src, Dst, 1),
     is_a_non_blocking_step(piece(advisor, Color, Src), Dst, Board).
 
 % Elephant
 check_move(piece(elephant, Color, Src), Dst, Board) :-
-    once(valid_pos_for(elephant, Dst)),
+    valid_pos_for(elephant, Dst),
     is_n_diagonal_step(Src, Dst, 2),
     get_one_diagonal_step_towards(Src, Dst, Midway),
     check_step(piece(elephant, Color, Src), Midway, Board, clear),
@@ -213,46 +214,49 @@ check_move(piece(elephant, Color, Src), Dst, Board) :-
 
 % Horse
 check_move(piece(horse, Color, Src), Dst, Board) :-
-    valid_pos(Dst),
     get_horse_midway_pos(Src, Dst, Midway),
     check_step(piece(horse, Color, Src), Midway, Board, clear),
     is_a_non_blocking_step(piece(horse, Color, Midway), Dst, Board).
 
 % Chariot
 check_move(piece(chariot, Color, Src), Dst, Board) :-
-    valid_pos(Dst),
     is_one_non_diagonal_step(Src, Dst),
     is_a_non_blocking_step(piece(chariot, Color, Src), Dst, Board).
 check_move(piece(chariot, Color, Src), Dst, Board) :-
-    \+ is_one_non_diagonal_step(Src, Dst),
     get_one_step_towards(Src, Dst, Midway),
-    valid_pos(Midway),
     check_step(piece(chariot, Color, Src), Midway, Board, clear),
     check_move(piece(chariot, Color, Midway), Dst, Board).
 
 % Cannon
-check_move(Piece, Dst, Board) :-
-    cannon_move_checker(Piece, Dst, Board, loading).
+check_move(piece(cannon, Color, Src), Dst, Board) :-
+    clearmove_checker(piece(cannon, Color, Src), Dst, Board).
+check_move(piece(cannon, Color, Src), Dst, Board) :-
+    cannon_attack_checker(piece(cannon, Color, Src), Dst, Board, clear).
 
-% Cannon move checking helper
-cannon_move_checker(piece(cannon, Color, Src), Dst, Board, _) :-
-    valid_pos(Dst),
+% Check if the move is clear.
+clearmove_checker(piece(Class, Color, Src), Dst, Board) :-
     is_one_non_diagonal_step(Src, Dst),
-    check_step(piece(cannon, Color, Src), Dst, Board, clear).
-cannon_move_checker(piece(cannon, Color, Src), Dst, Board, armed) :-
+    check_step(piece(Class, Color, Src), Dst, Board, clear).
+clearmove_checker(piece(Class, Color, Src), Dst, Board) :-
+    get_one_step_towards(Src, Dst, Midway),
+    check_step(piece(Class, Color, Src), Midway, Board, clear),
+    check_move(piece(Class, Color, Midway), Dst, Board).
+
+
+% Cannon attack checking helpers
+next_form(clear, armed) :- true, !.
+next_form(armed, fired) :- true, !.
+next_form(fired, fired) :- true, !.
+
+cannon_attack_checker(piece(cannon, Color, Src), Dst, Board, armed):-
     is_one_non_diagonal_step(Src, Dst),
     check_step(piece(cannon, Color, Src), Dst, Board, attack).
-cannon_move_checker(piece(cannon, Color, Src), Dst, Board, State) :-
-    \+ is_one_non_diagonal_step(Src, Dst),
+cannon_attack_checker(piece(cannon, Color, Src), Dst, Board, Form):-
     get_one_step_towards(Src, Dst, Midway),
-    valid_pos(Midway),
-    check_step(piece(cannon, Color, Src), Midway, Board, clear),
-    cannon_move_checker(piece(cannon, Color, Midway), Dst, Board, State).
-cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
-    \+ is_one_non_diagonal_step(Src, Dst),
-    get_one_step_towards(Src, Dst, Midway),
-    is_a_non_clear_step(piece(cannon, Color, Src), Midway, Board),
-    cannon_move_checker(piece(cannon, Color, Midway), Dst, Board, armed).
+    (is_a_non_clear_step(piece(cannon, Color, Src),Midway, Board) ->
+        next_form(Form, NForm),
+        cannon_attack_checker(piece(cannon, Color, Midway), Dst, Board, NForm);
+        cannon_attack_checker(piece(cannon, Color, Midway), Dst, Board, Form)).
 
 % ----------------------------------------------------------------
 % Move
@@ -260,7 +264,7 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     valid_pos(Dst),
-    once(get_piece(Src, Board, Piece)),
+    get_piece(Src, Board, Piece),
     piece_color(Piece, Turn),
     check_move(Piece, Dst, Board),
     move_piece(Src, Dst, Board, RawNBoard, PieceDropped),
