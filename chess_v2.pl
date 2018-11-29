@@ -126,9 +126,16 @@ get_piece(Pos, [piece(Class, Color, Pos)|_], piece(Class, Color, Pos)).
 get_piece(Pos, [_|T], Piece) :-
     get_piece(Pos, T, Piece).
 
+% piece property accessor.
+piece_class(piece(Class,_,_), Class).
+piece_color(piece(_,Color,_), Color).
+piece_pos(piece(_,_,Pos), Pos).
+
 % drop_piece(Pos, Board, Piece, NBoard).
-drop_piece(_, [], none, []) :- true, !.
-drop_piece(Pos, [piece(Class, Color, Pos)|T], piece(Class, Color, Pos), T) :- true, !.
+drop_piece(_, [], none, []) :-
+    true, !.
+drop_piece(Pos, [Piece|T], Piece, T) :-
+    piece_pos(Piece, Pos), !.
 drop_piece(Pos, [H|T], Piece, [H|R]) :-
     drop_piece(Pos, T, Piece, R).
 
@@ -253,6 +260,7 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     valid_pos(Dst),
     once(get_piece(Src, Board, Piece)),
+    piece_color(Piece, Turn),
     check_move(Piece, Dst, Board),
     move_piece(Src, Dst, Board, RawNBoard, PieceDropped),
     transit_state([Turn, Win], PieceDropped, NState),
