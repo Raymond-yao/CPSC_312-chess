@@ -99,10 +99,18 @@ init_board([
     piece(soldier, black, pos(7, 7)),
     piece(soldier, black, pos(7, 9))]).
 
+debug_board([
+    piece(chariot, red, pos(1, 1)),
+    piece(chariot, black, pos(10, 1)),
+    piece(general, red, pos(1, 5)),
+    piece(general, black, pos(10, 5))]).
+
 % inverse the board for black side to take the red stategies.
+inverse_pos(piece(Class, Color, pos(R,X)), piece(Class, Color, pos(IR,X))) :-
+    IR is 11 - R.
 inverse_board([], []).
-inverse_board([piece(Class, Color, pos(R, X)) | T], [piece(Class, Color, pos(IR, X))| R]) :-
-    IR is 11 - R,
+inverse_board([Piece | T], [NPiece | R]) :-
+    inverse_pos(Piece, NPiece),
     inverse_board(T, R).
 
 % State - [Turn, Winner]
@@ -118,12 +126,16 @@ get_piece(Pos, [piece(Class, Color, Pos)|_], piece(Class, Color, Pos)).
 get_piece(Pos, [_|T], Piece) :-
     get_piece(Pos, T, Piece).
 
-% move_piece(Piece, Dst, Board, NBoard, PieceDropped)
-move_piece(piece(Class, Color, _), Dst, [], [piece(Class, Color, Dst)], none).
-move_piece(Piece, Dst, [piece(Class, Color, Dst)|T], R, piece(Class, Color, Dst)) :-
-    move_piece(Piece, Dst, T, R, none).
-move_piece(piece(Class, Color, Src), Dst, [piece(Class, Color, Src)|T], R, Dropped) :-
-    move_piece(piece(Class, Color, Src), Dst, T, R, Dropped).
+% drop_piece(Pos, Board, Piece, NBoard).
+drop_piece(_, [], none, []) :- true, !.
+drop_piece(Pos, [piece(Class, Color, Pos)|T], piece(Class, Color, Pos), T) :- true, !.
+drop_piece(Pos, [H|T], Piece, [H|R]) :-
+    drop_piece(Pos, T, Piece, R).
+
+% move_piece(Src, Dst, Board, NBoard, PieceDropped)
+move_piece(Src, Dst, Board, [piece(Class, Color, Dst)|NBoard], PieceDropped) :-
+    drop_piece(Src, Board, piece(Class, Color, Src), NB1),
+    drop_piece(Dst, NB1, PieceDropped, NBoard).
 
 % Check the result of a specific step.
 check_step(piece(_,_,Src), Dst, Board, clear) :-
@@ -240,8 +252,8 @@ cannon_move_checker(piece(cannon, Color, Src), Dst, Board, loading) :-
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     valid_pos(Dst),
-    once(get_piece(Src, Board, piece(Class, Turn, Src))),
-    check_move(piece(Class, Turn, Src), Dst, Board),
-    move_piece(piece(Class, Turn, Src), Dst, Board, RawNBoard, PieceDropped),
+    once(get_piece(Src, Board, Piece)),
+    check_move(Piece, Dst, Board),
+    move_piece(Src, Dst, Board, RawNBoard, PieceDropped),
     transit_state([Turn, Win], PieceDropped, NState),
-    inverse_board(RawNBoard, NBoard).
+    inverse_board(RawNBoard, NBoard), !.
