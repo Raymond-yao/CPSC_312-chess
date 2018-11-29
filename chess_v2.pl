@@ -120,6 +120,8 @@ transpose_board([Piece | T], [NPiece | R]) :-
 % Winner: red, black, none.
 init_state([red, none]).
 
+% Value - [TurnOwnerValue, TurnOppenentValue]
+init_value([529, 529]).
 % ----------------------------------------------------------------
 % Helpers
 
@@ -133,6 +135,26 @@ get_piece(Pos, [_|T], Piece) :-
 piece_class(piece(Class,_,_), Class).
 piece_color(piece(_,Color,_), Color).
 piece_pos(piece(_,_,Pos), Pos).
+% piece value assignment
+piece_value(piece(soldier,_,_), 1).
+piece_value(piece(horse,_,_), 2).
+piece_value(piece(elephant,_,_), 2).
+piece_value(piece(advisor,_,_), 2).
+piece_value(piece(cannon,_,_), 3).
+piece_value(piece(chariot,_,_), 3).
+piece_value(piece(general,_,_), 500).
+
+% board_values(Board, Turn, MyValue, OpponetValue).
+board_values([], _, 0,0) :- true, !.
+board_values([piece(Class,Color,Pos)|T], Turn, MyValue, OpponentValue) :-
+    piece_value(piece(Class,Color,Pos), Value),
+    board_values(T, Turn, MV, OV),
+    (Color \= Turn ->
+        MyValue is MV, OpponentValue is OV + Value;
+        MyValue is MV + Value, OpponentValue is OV), !.
+
+value_difference([MyValue, OpponentValue], Difference) :-
+    Difference is MyValue - OpponentValue.
 
 % drop_piece(Pos, Board, Piece, NBoard).
 drop_piece(_, [], none, []) :-
@@ -259,7 +281,7 @@ cannon_attack_checker(piece(cannon, Color, Src), Dst, Board, Form):-
         cannon_attack_checker(piece(cannon, Color, Midway), Dst, Board, Form)).
 
 % ----------------------------------------------------------------
-% Move
+% Main
 
 % move(Src, Dst, game(Board, State), game(NBoard, NState))
 move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
@@ -270,6 +292,39 @@ move(Src, Dst, game(Board, [Turn, Win]), game(NBoard, NState)) :-
     move_piece(Src, Dst, Board, RawNBoard, PieceDropped),
     transit_state([Turn, Win], PieceDropped, NState),
     transpose_board(RawNBoard, NBoard), !.
+
+% player(Type, game(Board, State),MoveFrom, MoveTo).
+player(human, game(Board, _),MoveFrom, MoveTo) :-
+    format('Enter the piece position you want to move (in format pos(R,X). e.g. pos(10,1).)?:\n'),
+    read(MoveFrom),
+    get_piece(MoveFrom, Board, Piece),
+    format('Good, you are moving ~w\n', Piece),
+    format('Where do you want to move it into?:\n'),
+    read(MoveTo).
+
+play(game(Board, [none, Winner]), _, _) :-
+    format('===========================\n'),
+    format(' Game Over, ~w had won the game! \n', Winner),
+    format('===========================\n'),
+    draw_board(Board).
+
+
+play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType) :-
+    format('===========================\n'),
+    format('Turn for [ ~q ] to make a move. \n', Turn),
+    format('===========================\n'),
+    draw_board(Board),
+    player(TurnPlayerType, game(Board, [Turn, none]), Src, Dst),
+    move(Src, Dst, game(Board, [Turn, none]), NGame),
+    play(NGame, OpponentPlayerType, TurnPlayerType);
+    format('\n\n[!!!!!!! INVALID MOVE !!!!!!!]\n Either the input is not of the format pos(R,X), or the move is illigal.\n\n'),
+    play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType).
+
+
+start:-
+    debug_board(Board),
+    init_state(State),
+    play(game(Board,State), human, human),!.
 
 % ----------------------------------------------------------------
 % Prints
