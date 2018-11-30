@@ -136,6 +136,7 @@ piece_class(piece(Class,_,_), Class).
 piece_color(piece(_,Color,_), Color).
 piece_pos(piece(_,_,Pos), Pos).
 % piece value assignment
+piece_value(none, 0).
 piece_value(piece(soldier,_,_), 1).
 piece_value(piece(horse,_,_), 2).
 piece_value(piece(elephant,_,_), 2).
@@ -204,6 +205,45 @@ transit_state([Turn, _], piece(Class, _,_), [NextTurn, none]) :-
     other(Turn, NextTurn), !.
 
 % ----------------------------------------------------------------
+% MaxValue Helper
+
+% piece_move_value(Piece, Dst, Board, Value).
+move_value(piece(Class,Color,Src), Dst, Board, NBoardValueDiff) :-
+    check_move(piece(Class,Color,Src), Dst, Board),
+    move_piece(Src, Dst, Board, NBoard, _),
+    board_values(NBoard, Color, MyValue, OpponentValue),
+    NBoardValueDiff is MyValue - OpponentValue.
+
+% best_piece_move(Piece, pos(R,X), Board, BestMove, move(Dst, ValueDifference))
+best_piece_move(_, pos(11,_), _, BestMove, BestMove) :- true, !.
+best_piece_move(Piece, pos(R,10), Board, BestMove, Move) :-
+    NR is R + 1,
+    best_piece_move(Piece, pos(NR,1), Board, BestMove, Move), !.
+best_piece_move(Piece, pos(R,X), Board, move(BestDst, BestValueDiff), Move) :-
+    NX is X + 1,
+    (move_value(Piece, pos(R,X), Board, MoveValueDiff),
+    MoveValueDiff > BestValueDiff ->
+    best_piece_move(Piece,pos(R,NX), Board, move(pos(R,X), MoveValueDiff), Move);
+    best_piece_move(Piece,pos(R,NX), Board, move(BestDst, BestValueDiff), Move)), !.
+
+% Get the best position for the current piece to move into.
+best_piece_move(Piece,Board,Move) :-
+    best_piece_move(Piece, pos(1,1), Board, move(pos(0,0), -500), Move).
+
+% best_turn_move(Turn, Board, BestMove, move(Piece,Dst,VD)).
+best_turn_move(_, [], BestMove, BestMove) :- true, !.
+best_turn_move(Turn, [Piece|T], move(BP,BD,BVD), Move) :-
+    (piece_color(Piece, Turn),
+    best_piece_move(Piece, [Piece|T], move(Dst, VD)),
+    VD > BVD ->
+    best_turn_move(Turn, T, move(Piece,Dst,VD), Move);
+    best_turn_move(Turn, T, move(BP,BD,BVD), Move)), !.
+
+% Get the best move for the current turn player.
+best_turn_move(Turn, Board, Move) :-
+    best_turn_move(Turn, Board, move(none, pos(0,0), -500), Move).
+
+% ----------------------------------------------------------------
 % Move Checking
 
 % Soldier
@@ -220,6 +260,10 @@ check_move(piece(general, Color, Src), Dst, Board) :-
     valid_pos_for(general, Dst),
     is_one_non_diagonal_step(Src, Dst),
     is_a_non_blocking_step(piece(general, Color, Src), Dst, Board), !.
+check_move(piece(general, Color, Src), Dst, Board) :-
+    other(Color, OtherColor),
+    get_piece(Dst, Board, piece(general, OtherColor, Dst)),
+    check_move(piece(chariot, Color, Src), Dst, Board), !.
 
 % Advisor
 check_move(piece(advisor, Color, Src), Dst, Board) :-
