@@ -106,6 +106,17 @@ debug_board([
     piece(general, red, pos(1, 5)),
     piece(general, black, pos(10, 5))]).
 
+debug_board2([
+    piece(chariot, red, pos(10, 1)),
+    piece(chariot, black, pos(1, 1)),
+    piece(advisor, red, pos(1, 4)),
+    piece(general, red, pos(1, 5)),
+    piece(advisor, red, pos(1, 6)),
+    piece(soldier, black, pos(7, 5)),
+    piece(advisor, black, pos(10, 4)),
+    piece(advisor, black, pos(10, 6)),
+    piece(general, black, pos(10, 5))]).
+
 % transpose the board for black side to take the red stategies.
 transpose_pos(piece(Class, Color, pos(R,X)), piece(Class, Color, pos(IR,IX))) :-
     IR is 11 - R,
@@ -120,8 +131,6 @@ transpose_board([Piece | T], [NPiece | R]) :-
 % Winner: red, black, none.
 init_state([red, none]).
 
-% Value - [TurnOwnerValue, TurnOppenentValue]
-init_value([529, 529]).
 % ----------------------------------------------------------------
 % Helpers
 
@@ -144,18 +153,6 @@ piece_value(piece(advisor,_,_), 2).
 piece_value(piece(cannon,_,_), 3).
 piece_value(piece(chariot,_,_), 3).
 piece_value(piece(general,_,_), 500).
-
-% board_values(Board, Turn, MyValue, OpponetValue).
-board_values([], _, 0,0) :- true, !.
-board_values([piece(Class,Color,Pos)|T], Turn, MyValue, OpponentValue) :-
-    piece_value(piece(Class,Color,Pos), Value),
-    board_values(T, Turn, MV, OV),
-    (Color \= Turn ->
-        MyValue is MV, OpponentValue is OV + Value;
-        MyValue is MV + Value, OpponentValue is OV), !.
-
-value_difference([MyValue, OpponentValue], Difference) :-
-    Difference is MyValue - OpponentValue.
 
 % drop_piece(Pos, Board, Piece, NBoard).
 drop_piece(_, [], none, []) :-
@@ -208,11 +205,10 @@ transit_state([Turn, _], piece(Class, _,_), [NextTurn, none]) :-
 % MaxValue Helper
 
 % piece_move_value(Piece, Dst, Board, Value).
-move_value(piece(Class,Color,Src), Dst, Board, NBoardValueDiff) :-
+move_value(piece(Class,Color,Src), Dst, Board, Value) :-
     check_move(piece(Class,Color,Src), Dst, Board),
-    move_piece(Src, Dst, Board, NBoard, _),
-    board_values(NBoard, Color, MyValue, OpponentValue),
-    NBoardValueDiff is MyValue - OpponentValue.
+    move_piece(Src, Dst, Board, _, PD),
+    piece_value(PD, Value), !.
 
 % best_piece_move(Piece, pos(R,X), Board, BestMove, move(Dst, ValueDifference))
 best_piece_move(_, pos(11,_), _, BestMove, BestMove) :- true, !.
@@ -241,7 +237,7 @@ best_turn_move(Turn, [Piece|T], move(BP,BD,BVD), Move) :-
 
 % Get the best move for the current turn player.
 best_turn_move(Turn, Board, Move) :-
-    best_turn_move(Turn, Board, move(none, pos(0,0), -500), Move).
+    best_turn_move(Turn, Board, move(none, pos(0,0), -500), Move), !.
 
 % ----------------------------------------------------------------
 % Move Checking
@@ -346,6 +342,9 @@ player(human, game(Board, _),MoveFrom, MoveTo) :-
     format('Where do you want to move it into?:\n'),
     read(MoveTo).
 
+player(cpu, game(Board, [Turn,_]), MoveFrom, MoveTo) :-
+    best_turn_move(Turn, Board, move(piece(_,_,MoveFrom),MoveTo,_)), !.
+
 play(game(Board, [none, Winner]), _, _) :-
     format('===========================\n'),
     format(' Game Over, ~w had won the game! \n', Winner),
@@ -361,17 +360,25 @@ play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType) :-
     player(TurnPlayerType, game(Board, [Turn, none]), Src, Dst),
     move(Src, Dst, game(Board, [Turn, none]), NGame, PieceDropped),
     format('========= Valid move =========\n'),
-    format('Move: ~w -> ~w | Piece dropped: ~w\n', [Src, Dst, PieceDropped]),
+    format('[ ~w ] move: ~w -> ~w\nPiece dropped: ~w\n', [Turn, Src, Dst, PieceDropped]),
     format('`````` End of ~w turn ```````\n\n', Turn),
     play(NGame, OpponentPlayerType, TurnPlayerType);
     format('\n\n[!!!!!!! INVALID MOVE !!!!!!!]\n Either the input is not of the format pos(R,X), or the move is illigal.\n\n'),
     play(game(Board, [Turn, none]), TurnPlayerType, OpponentPlayerType).
 
-
 start:-
-    debug_board(Board),
+    init_board(Board),
     init_state(State),
-    play(game(Board,State), human, human),!.
+    play(game(Board,State), human, human), !.
+
+start(Board, P1, P2):-
+    init_state(State),
+    play(game(Board,State), P1, P2), !.
+
+vscpu(Board) :-
+    init_state(State),
+    play(game(Board,State), human, cpu), !.
+
 
 % ----------------------------------------------------------------
 % Prints
