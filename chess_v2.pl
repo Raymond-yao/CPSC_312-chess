@@ -63,6 +63,12 @@ get_horse_midway_pos(pos(R1,X1), pos(R2,X2), pos(R3,X1)) :-
     abs(R2-R1) =:= abs(X2-X1) + 1,
     R3 is (R1+R2)/2.
 
+is_valid_horse_move(pos(R1,X1), pos(R2,X2)) :-
+    DR is abs(R1-R2),
+    DX is abs(X1-X2),
+    (DR == 2, DX == 1;
+    DR == 1, DX == 2).
+
 % ----------------------------------------------------------------
 % Initialization
 init_board([
@@ -107,7 +113,7 @@ debug_board([
     piece(general, black, pos(10, 5))]).
 
 debug_board2([
-    piece(chariot, red, pos(10, 1)),
+    piece(horse, red, pos(10, 2)),
     piece(chariot, black, pos(1, 1)),
     piece(advisor, red, pos(1, 4)),
     piece(general, red, pos(1, 5)),
@@ -277,6 +283,7 @@ check_move(piece(elephant, Color, Src), Dst, Board) :-
 
 % Horse
 check_move(piece(horse, Color, Src), Dst, Board) :-
+    is_valid_horse_move(Src, Dst),
     get_horse_midway_pos(Src, Dst, Midway),
     check_step(piece(horse, Color, Src), Midway, Board, clear),
     is_a_non_blocking_step(piece(horse, Color, Midway), Dst, Board), !.
