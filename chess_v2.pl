@@ -211,10 +211,9 @@ transit_state([Turn, _], piece(Class, _,_), [NextTurn, none]) :-
 % MaxValue Helper
 
 % piece_move_value(Piece, Dst, Board, Value).
-move_value(piece(Class,Color,Src), Dst, Board, Value) :-
-    check_move(piece(Class,Color,Src), Dst, Board),
-    move_piece(Src, Dst, Board, _, PD),
-    piece_value(PD, Value), !.
+move_value(piece(_,Turn,Src), Dst, Board, Value) :-
+    move(Src, Dst, game(Board, [Turn, none]), _, PieceDropped),
+    piece_value(PieceDropped, Value).
 
 % best_piece_move(Piece, pos(R,X), Board, BestMove, move(Dst, ValueDifference))
 best_piece_move(_, pos(11,_), _, BestMove, BestMove) :- true, !.
