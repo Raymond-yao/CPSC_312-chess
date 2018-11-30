@@ -385,6 +385,9 @@ vscpu(Board) :-
     init_state(State),
     play(game(Board,State), human, cpu), !.
 
+startcpu :-
+    init_board(Board),
+    vscpu(Board).
 
 % ----------------------------------------------------------------
 % Prints
